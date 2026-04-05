@@ -46,6 +46,6 @@ def chat_ai(message):
         bot.reply_to(message, "ခေတ္တစောင့်ဆိုင်းပြီးမှ ပြန်မေးပေးပါဗျာ။")
 
 # ၄။ Bot ကို အမြဲတမ်း ပွင့်နေစေရန် Run ခြင်း
-if name == "main":
+if __name__ == "__main__":
     print("Bot is starting on Render...")
     bot.infinity_polling()
