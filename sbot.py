@@ -1,78 +1,32 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    ContextTypes
-)
-from duckduckgo_search import DDGS
-from keep_alive import keep_alive
+import telebot
+import requests
 
-# ✅ Web Search Function
-def search_web(query):
-    with DDGS() as ddgs:
-        results = ddgs.text(query, max_results=3)
-        return "\n\n".join([f"{r['title']}\n{r['href']}" for r in results]) or "No results found."
+# သင်၏ Telegram Bot Token
+TOKEN = "8754953424:AAG1-wKJ7uJVdMNk9s-KFThkPnLL5RSAgEA"
+bot = telebot.TeleBot(TOKEN)
 
-# ✅ /start Command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("Search 🔍", callback_data='search')],
-        [InlineKeyboardButton("Movie(use vpn) 🍿", callback_data='movie')],
-        [InlineKeyboardButton("Book 📚", callback_data='book')],
-        [InlineKeyboardButton("Contact 📩", callback_data='contact')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Welcome! ကြိုက်ရာရွေးပြီး သုံးနိုင်ပါတယ်💖:", reply_markup=reply_markup)
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "မင်္ဂလာပါ! ကျွန်တော်က Chat AI Bot ပါ။ သိချင်တာတွေကို စာရိုက်ပြီး မေးမြန်းနိုင်ပါတယ်ဗျာ။")
 
-# ✅ /search Command
-async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args:
-        query = " ".join(context.args)
-        result = search_web(query)
-        await update.message.reply_text(result)
-    else:
-        await update.message.reply_text("Usage: /search your query")
+@bot.message_handler(func=lambda message: True)
+def chat_ai(message):
+    user_query = message.text
+    # အဖြေရှာနေစဉ် ခဏစောင့်ရန် အသိပေးခြင်း
+    status_msg = bot.reply_to(message, "🔍 အဖြေရှာပေးနေပါတယ်... ခဏစောင့်ပါ...")
+    
+    try:
+        # AI API သို့ ချိတ်ဆက်မေးမြန်းခြင်း (အခမဲ့ AI စနစ်)
+        api_url = f"https://nexra.aryahcr.cc/api/ai/chatgpt?prompt={user_query}&model=gpt-4"
+        response = requests.get(api_url, timeout=30)
+        
+        if response.status_code == 200:
+            ai_answer = response.json().get('gpt', 'နားမလည်နိုင်ဖြစ်နေပါတယ်ဗျာ။')
+            bot.edit_message_text(ai_answer, message.chat.id, status_msg.message_id)
+        else:
+            bot.edit_message_text("⚠️ AI Server အလုပ်မလုပ်သေးပါ။", message.chat.id, status_msg.message_id)
+            
+    except Exception as e:
+        bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, status_msg.message_id)
 
-# ✅ /movie Command
-async def movie(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🎬 Visit Channel Myanmar: https://channelmyanmar.org")
-
-# ✅ /book Command
-async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📚 Browse Myanmar Books: https://www.shwenarsin.com/category")
-
-# ✅ /contact Command
-async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📩 You can contact @mgzim anytime.")
-
-# ✅ Handle Inline Buttons
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == 'search':
-        await query.message.reply_text("Please use /search <your query>")
-    elif query.data == 'movie':
-        await movie(query, context)
-    elif query.data == 'book':
-        await book(query, context)
-    elif query.data == 'contact':
-        await contact(query, context)
-
-# ✅ Bot Setup
-def main():
-    keep_alive()
-
-    app = ApplicationBuilder().token("7988888713:AAGnQn4CFnX7NGaN6a7YzL0AvEfDExEtfsI").build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("search", search))
-    app.add_handler(CommandHandler("movie", movie))
-    app.add_handler(CommandHandler("book", book))
-    app.add_handler(CommandHandler("contact", contact))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    print("🤖 Bot is running...")
-    app.run_polling()
-
-if __name__ == '__main__':
-    main()
+bot.infinity_polling()
